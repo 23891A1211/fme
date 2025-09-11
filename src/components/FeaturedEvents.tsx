@@ -191,8 +191,15 @@ export function FeaturedEvents() {
     }
   }, [user]);
 
-  // Show only featured events (first 4)
-  const featuredEvents = events.slice(0, 4);
+  // Show only featured events (first 4). If none available, fall back to demo events.
+  const demoEvents = [
+    { id: 'demo-1', title: 'Campus Hack Night', description: '', type: 'hackathon', date: new Date().toISOString(), time: '18:00', venue: 'Innovation Lab', college: 'IIT Delhi', organizer: 'Tech Club', organizerId: 'org-1', price: 0, capacity: 100, registered: 42, status: 'upcoming', image: 'https://images.unsplash.com/photo-1518779578993-ec3579fee39f?w=800', tags: [], createdAt: '', updatedAt: '' },
+    { id: 'demo-2', title: 'Cultural Evening', description: '', type: 'cultural', date: new Date().toISOString(), time: '18:00', venue: 'Open Air Theatre', college: 'Delhi University', organizer: 'Cultural Society', organizerId: 'org-2', price: 200, capacity: 500, registered: 180, status: 'upcoming', image: 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?w=800', tags: [], createdAt: '', updatedAt: '' },
+    { id: 'demo-3', title: 'AI/ML Workshop', description: '', type: 'workshop', date: new Date().toISOString(), time: '10:00', venue: 'Comp Lab 1', college: 'IIIT Hyderabad', organizer: 'AI Club', organizerId: 'org-3', price: 300, capacity: 50, registered: 25, status: 'upcoming', image: 'https://images.unsplash.com/photo-1515879218367-8466d910aaa4?w=800', tags: [], createdAt: '', updatedAt: '' },
+    { id: 'demo-4', title: 'Inter-College Cricket', description: '', type: 'sports', date: new Date().toISOString(), time: '08:00', venue: 'Main Ground', college: 'Mumbai University', organizer: 'Sports Committee', organizerId: 'org-5', price: 100, capacity: 300, registered: 95, status: 'upcoming', image: 'https://images.unsplash.com/photo-1521417531039-999ca8dec204?w=800', tags: [], createdAt: '', updatedAt: '' }
+  ] as any[];
+
+  const featuredEvents = (events && events.length > 0 ? events : demoEvents).slice(0, 4);
 
   if (loading) {
     return (

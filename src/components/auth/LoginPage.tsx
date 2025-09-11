@@ -293,18 +293,16 @@ export function LoginPage() {
         </p>
       </div>
 
-      {/* Quick Demo Logins (controlled by env) */}
-      {((import.meta as any).env?.VITE_ENABLE_DEMO_LOGINS === 'true') && (
-        <div className="mt-8 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-          <p className="text-sm font-medium mb-2 text-center text-blue-700 dark:text-blue-300">Demo Accounts</p>
-          <div className="grid grid-cols-2 gap-2">
-            <Button variant="outline" size="sm" onClick={() => login('student@demo.com','demo123')}>Student</Button>
-            <Button variant="outline" size="sm" onClick={() => login('organizer@demo.com','demo123')}>Organizer</Button>
-            <Button variant="outline" size="sm" onClick={() => login('crew@demo.com','demo123')}>Crew</Button>
-            <Button variant="outline" size="sm" onClick={() => login('admin@demo.com','demo123')}>Admin</Button>
-          </div>
+      {/* Quick Demo Logins */}
+      <div className="mt-8 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+        <p className="text-sm font-medium mb-2 text-center text-blue-700 dark:text-blue-300">Demo Accounts</p>
+        <div className="grid grid-cols-2 gap-2">
+          <Button variant="outline" size="sm" onClick={() => login('student@demo.com','demo123')}>Student</Button>
+          <Button variant="outline" size="sm" onClick={() => login('organizer@demo.com','demo123')}>Organizer</Button>
+          <Button variant="outline" size="sm" onClick={() => login('crew@demo.com','demo123')}>Crew</Button>
+          <Button variant="outline" size="sm" onClick={() => login('admin@demo.com','demo123')}>Admin</Button>
         </div>
-      )}
+      </div>
 
       {/* Authentication Help */}
       <div className="mt-4 p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
