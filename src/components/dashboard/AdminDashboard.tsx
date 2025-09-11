@@ -56,12 +56,12 @@ export function AdminDashboard() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('verifications');
   const [organizers, setOrganizers] = useState<Array<{ id:string; name:string; email:string; verificationStatus: 'approved'|'pending'|'rejected'|'unverified' }>>([]);
-  const [pending, setPending] = useState<Array<{id:string; userId:string; name:string|null; email:string|null; college:string|null; submittedAt:string; documents:string[];}>>([]);
+  const [pending, setPending] = useState<Array<{id:string; userId:string; name:string|null; email:string|null; college:string|null; submittedAt:string; documents:string[]; status:'pending'|'approved'|'rejected';}>>([]);
 
   const refreshPending = async () => {
     try {
       const list = await supabaseApi.getPendingOrganizerVerifications();
-      setPending(list.map(i => ({ id: i.id, userId: i.userId, name: i.name, email: i.email, college: i.college, submittedAt: i.submittedAt, documents: i.documents })));
+      setPending(list.map(i => ({ id: i.id, userId: i.userId, name: i.name, email: i.email, college: i.college, submittedAt: i.submittedAt, documents: i.documents, status: 'pending' })));
     } catch {
       setPending([]);
     }
@@ -74,15 +74,31 @@ export function AdminDashboard() {
     const onFocus = () => { refreshPending(); };
     window.addEventListener('focus', onFocus);
     const interval = window.setInterval(() => { refreshPending(); }, 5000);
-    return () => { window.removeEventListener('focus', onFocus); window.clearInterval(interval); };
+
+    // Listen for verification status changes dispatched by API helper
+    const onVerificationChanged = async () => {
+      await refreshPending();
+      const list = await getOrganizers();
+      setOrganizers(list);
+    };
+    window.addEventListener('verificationStatusChanged', onVerificationChanged as EventListener);
+    window.addEventListener('newOrganizerVerification', onVerificationChanged as EventListener);
+
+    return () => { window.removeEventListener('focus', onFocus); window.clearInterval(interval); window.removeEventListener('verificationStatusChanged', onVerificationChanged as EventListener); window.removeEventListener('newOrganizerVerification', onVerificationChanged as EventListener); };
   }, []);
 
   const handleApproveOrganizer = async (id: string) => {
     if (!window.confirm('Approve this organizer?')) return;
     const item = pending.find(p => p.id === id);
     const userId = item?.userId || id;
+    // Optimistic UI update
+    setPending(prev => prev.map(p => p.id === id ? { ...p, status: 'approved' } : p));
+    // Optimistically mark organizer as approved in list view
+    setOrganizers(prev => prev.map(o => o.id === userId ? { ...o, verificationStatus: 'approved' } : o));
     await supabaseApi.reviewOrganizerVerification(userId, 'approved');
     await refreshPending();
+    // Refresh organizers list so the status reflects immediately in UI
+    try { const list = await getOrganizers(); setOrganizers(list); } catch {}
     alert('Organizer approved successfully!');
   };
 
@@ -91,8 +107,13 @@ export function AdminDashboard() {
     if (!reason) return;
     const item = pending.find(p => p.id === id);
     const userId = item?.userId || id;
+    // Optimistic UI update
+    setPending(prev => prev.map(p => p.id === id ? { ...p, status: 'rejected' } : p));
+    // Optimistically mark organizer as rejected in list view
+    setOrganizers(prev => prev.map(o => o.id === userId ? { ...o, verificationStatus: 'rejected' } : o));
     await supabaseApi.reviewOrganizerVerification(userId, 'rejected', reason);
     await refreshPending();
+    try { const list = await getOrganizers(); setOrganizers(list); } catch {}
     alert('Organizer rejected. Email notification sent.');
   };
 
@@ -227,7 +248,7 @@ export function AdminDashboard() {
           <TabsContent value="verifications" className="space-y-6">
             <div className="flex justify-between items-center">
               <h3 className="text-lg font-semibold">Pending Organizer Verifications</h3>
-              <Badge variant="destructive">{pending.length} pending</Badge>
+              <Badge variant="destructive">{pending.filter(p => p.status === 'pending').length} pending</Badge>
             </div>
 
             {pending.length === 0 ? (
@@ -254,20 +275,28 @@ export function AdminDashboard() {
                             ))}
                           </div>
                         </div>
-                        <div className="flex space-x-2">
-                            <Button size="sm" variant="outline" className="text-green-600 border-green-600 hover:bg-green-50" onClick={() => handleApproveOrganizer(organizer.id)}>
-                            <CheckCircle size={14} className="mr-2" />
-                            Approve
-                          </Button>
-                            <Button size="sm" variant="outline" className="text-red-600 border-red-600 hover:bg-red-50" onClick={() => handleRejectOrganizer(organizer.id)}>
-                            <XCircle size={14} className="mr-2" />
-                            Reject
-                          </Button>
-                            <Button size="sm" variant="outline" onClick={refreshPending}>
-                            <FileText size={14} className="mr-2" />
-                              Refresh
-                          </Button>
-                        </div>
+                        {organizer.status === 'pending' ? (
+                          <div className="flex space-x-2">
+                              <Button size="sm" variant="outline" className="text-green-600 border-green-600 hover:bg-green-50" onClick={() => handleApproveOrganizer(organizer.id)}>
+                              <CheckCircle size={14} className="mr-2" />
+                              Approve
+                            </Button>
+                              <Button size="sm" variant="outline" className="text-red-600 border-red-600 hover:bg-red-50" onClick={() => handleRejectOrganizer(organizer.id)}>
+                              <XCircle size={14} className="mr-2" />
+                              Reject
+                            </Button>
+                              <Button size="sm" variant="outline" onClick={refreshPending}>
+                              <FileText size={14} className="mr-2" />
+                                Refresh
+                            </Button>
+                          </div>
+                        ) : (
+                          <div>
+                            <Badge variant={organizer.status === 'approved' ? 'secondary' : 'destructive'} className="capitalize">
+                              {organizer.status}
+                            </Badge>
+                          </div>
+                        )}
                       </div>
                     </CardContent>
                   </Card>

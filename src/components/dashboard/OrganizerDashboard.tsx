@@ -89,6 +89,19 @@ export function OrganizerDashboard() {
       }
     };
     load();
+
+    // When verification status changes (approved/rejected), update local user and UI
+    const onVerificationChanged = async (e: any) => {
+      if (!user || !e?.detail) return;
+      const { userId, status } = e.detail as { userId: string; status: 'approved'|'rejected'|'pending' };
+      if (userId === user.id) {
+        await updateUser({ verificationStatus: status, updatedAt: new Date().toISOString() } as any);
+      }
+    };
+    window.addEventListener('verificationStatusChanged', onVerificationChanged as EventListener);
+    return () => {
+      window.removeEventListener('verificationStatusChanged', onVerificationChanged as EventListener);
+    };
   }, [user?.id]);
 
   const submitVerification = async () => {

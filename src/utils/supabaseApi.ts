@@ -567,17 +567,28 @@ class SupabaseAPI {
       if (!session) {
         throw new Error('No session returned');
       }
+      // Prefer role from users table; fallback to auth metadata
+      let resolvedRole: any = session.user.user_metadata?.type || undefined;
+      try {
+        const { data: profile } = await supabase
+          .from('users')
+          .select('role, full_name, college_name, profile_completed')
+          .eq('id', session.user.id)
+          .single();
+        if (profile?.role) {
+          resolvedRole = profile.role;
+        }
+      } catch {}
 
-      // Build user object directly from auth session to avoid users table dependency
       const user: User = {
-          id: session.user.id,
-          name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'User',
-          email: session.user.email || '',
-        type: (session.user.user_metadata?.type as any) || 'student',
-          verified: !!session.user.email_confirmed_at,
-          isOnboarded: false,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
+        id: session.user.id,
+        name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'User',
+        email: session.user.email || '',
+        type: (resolvedRole as any) || 'student',
+        verified: !!session.user.email_confirmed_at,
+        isOnboarded: false,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
       } as User;
       
       showToast.auth.loginSuccess(user.name);
@@ -612,17 +623,28 @@ class SupabaseAPI {
         return null;
       }
       // Build user directly from session
-        const authUser = session.user;
-        const meta: any = authUser.user_metadata || {};
+      const authUser = session.user;
+      const meta: any = authUser.user_metadata || {};
+      let resolvedRole: any = meta.type || undefined;
+      try {
+        const { data: profile } = await supabase
+          .from('users')
+          .select('role, full_name, college_name, profile_completed')
+          .eq('id', authUser.id)
+          .single();
+        if (profile?.role) {
+          resolvedRole = profile.role;
+        }
+      } catch {}
       const user: User = {
-          id: authUser.id,
-          name: meta.name || authUser.email?.split('@')[0] || 'User',
-          email: authUser.email || '',
-          type: (meta.type as any) || 'student',
-          verified: !!authUser.email_confirmed_at,
-          isOnboarded: false,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
+        id: authUser.id,
+        name: meta.name || authUser.email?.split('@')[0] || 'User',
+        email: authUser.email || '',
+        type: (resolvedRole as any) || 'student',
+        verified: !!authUser.email_confirmed_at,
+        isOnboarded: false,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
       } as User;
 
       return { user, session };
