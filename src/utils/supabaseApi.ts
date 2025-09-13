@@ -567,30 +567,39 @@ class SupabaseAPI {
       if (!session) {
         throw new Error('No session returned');
       }
+      
       // Prefer role from users table; fallback to auth metadata
-      let resolvedRole: any = session.user.user_metadata?.type || undefined;
+      let resolvedRole: any = session.user.user_metadata?.type || 'student';
+      let profileData: any = {};
+      
       try {
         const { data: profile } = await supabase
           .from('users')
-          .select('role, full_name, college_name, profile_completed')
+          .select('role, full_name, college, profile_completed, interests, location_preferences')
           .eq('id', session.user.id)
           .single();
         if (profile?.role) {
           resolvedRole = profile.role;
+          profileData = profile;
         }
-      } catch {}
+      } catch (dbError) {
+        console.warn('Could not fetch user profile, using auth metadata:', dbError);
+      }
 
       const user: User = {
         id: session.user.id,
-        name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'User',
+        name: profileData.full_name || session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'User',
         email: session.user.email || '',
         type: (resolvedRole as any) || 'student',
+        college: profileData.college,
         verified: !!session.user.email_confirmed_at,
-        isOnboarded: false,
+        isOnboarded: !!profileData.profile_completed,
+        interests: profileData.interests || [],
+        location: profileData.location_preferences?.[0],
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       } as User;
-      
+
       showToast.auth.loginSuccess(user.name);
       return { user, session };
     } catch (error) {
@@ -622,27 +631,37 @@ class SupabaseAPI {
         }
         return null;
       }
+      
       // Build user directly from session
       const authUser = session.user;
       const meta: any = authUser.user_metadata || {};
-      let resolvedRole: any = meta.type || undefined;
+      let resolvedRole: any = meta.type || 'student';
+      let profileData: any = {};
+      
       try {
         const { data: profile } = await supabase
           .from('users')
-          .select('role, full_name, college_name, profile_completed')
+          .select('role, full_name, college, profile_completed, interests, location_preferences')
           .eq('id', authUser.id)
           .single();
         if (profile?.role) {
           resolvedRole = profile.role;
+          profileData = profile;
         }
-      } catch {}
+      } catch (dbError) {
+        console.warn('Could not fetch user profile, using auth metadata:', dbError);
+      }
+      
       const user: User = {
         id: authUser.id,
-        name: meta.name || authUser.email?.split('@')[0] || 'User',
+        name: profileData.full_name || meta.name || authUser.email?.split('@')[0] || 'User',
         email: authUser.email || '',
         type: (resolvedRole as any) || 'student',
+        college: profileData.college,
         verified: !!authUser.email_confirmed_at,
-        isOnboarded: false,
+        isOnboarded: !!profileData.profile_completed,
+        interests: profileData.interests || [],
+        location: profileData.location_preferences?.[0],
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       } as User;

@@ -1,21 +1,59 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabaseApi } from '../../utils/supabaseApi';
+import { supabase } from '../../utils/supabaseClient';
 import { LoadingSpinner } from '../LoadingSpinner';
 import { motion } from 'motion/react';
 
 export function OAuthCallback() {
   const navigate = useNavigate();
   const { user, isLoading } = useAuth();
+  const [status, setStatus] = useState('Processing authentication...');
 
   useEffect(() => {
     const handleOAuthCallback = async () => {
       try {
+        setStatus('Processing authentication...');
+        
         // Get the session from Supabase after OAuth redirect
         const sessionData = await supabaseApi.getCurrentSession();
         
-        if (sessionData) {
+        if (sessionData && sessionData.user) {
+          setStatus('Setting up your account...');
+          
+          // Ensure user profile exists in database
+          try {
+            const { data: existingUser } = await supabase
+              .from('users')
+              .select('*')
+              .eq('id', sessionData.user.id)
+              .single();
+
+            if (!existingUser) {
+              // Create user profile if it doesn't exist
+              const { error: insertError } = await supabase
+                .from('users')
+                .insert([{
+                  id: sessionData.user.id,
+                  email: sessionData.user.email,
+                  full_name: sessionData.user.name || sessionData.user.email?.split('@')[0] || 'User',
+                  role: 'student', // Default role for OAuth users
+                  profile_completed: false,
+                  interests: [],
+                  location_preferences: []
+                }]);
+
+              if (insertError) {
+                console.warn('Could not create user profile:', insertError);
+              }
+            }
+          } catch (dbError) {
+            console.warn('Database operation failed, continuing with auth session:', dbError);
+          }
+
+          setStatus('Redirecting to dashboard...');
+          
           // User is authenticated, redirect to appropriate dashboard
           if (sessionData.user.type === 'student' && !sessionData.user.isOnboarded) {
             navigate('/onboarding');
@@ -24,11 +62,13 @@ export function OAuthCallback() {
           }
         } else {
           // No session found, redirect to login
-          navigate('/login');
+          setStatus('Authentication failed, redirecting...');
+          setTimeout(() => navigate('/login'), 2000);
         }
       } catch (error) {
         console.error('OAuth callback error:', error);
-        navigate('/login');
+        setStatus('Authentication failed, redirecting...');
+        setTimeout(() => navigate('/login'), 2000);
       }
     };
 
@@ -47,7 +87,7 @@ export function OAuthCallback() {
       >
         <LoadingSpinner />
         <h2 className="text-xl font-semibold mt-4 mb-2">Completing authentication...</h2>
-        <p className="text-muted-foreground">Please wait while we set up your account.</p>
+        <p className="text-muted-foreground">{status}</p>
       </motion.div>
     </div>
   );
